@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Follow a falling integer lattice from its upper release plane to concentric, evenly spaced landing rings.">
+<title>The falling lattice</title>
+<style>
+:root {
+  --paper:#f5f3ec; --card:#fffef9; --ink:#172b2a; --muted:#546862;
+  --line:#d1d8ce; --green:#146051; --deep:#10232c; --light:#ebf4ee;
+  --mint:#8ad9c0; --gold:#ffc782; --mono:ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --serif:Georgia,"Times New Roman",serif;
+}
+* { box-sizing:border-box }
+body { margin:0; color:var(--ink); background:var(--paper); font:14px/1.45 var(--sans); font-variant-numeric:tabular-nums }
+button,input,select { font:inherit }
+button,select,summary { cursor:pointer }
+button { color:inherit }
+button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-visible, summary:focus-visible { outline:3px solid #cf822d; outline-offset:3px }
+button { -webkit-tap-highlight-color:transparent }
+main { width:min(1512px,100%); padding:32px clamp(18px,3.7vw,62px) 30px; margin:auto }
+.mast { display:flex; align-items:center; justify-content:space-between; gap:22px; margin:0 0 25px }
+.title-group { display:flex; align-items:center; gap:17px; min-width:0 }
+.mark { display:grid; place-items:center; width:54px; height:54px; flex:none; border-radius:15px; background:#153c36; color:#a1dbbf }
+h1,h2,h3,p,figure { margin:0 }
+h1 { font:normal clamp(36px,3.5vw,55px)/1.07 var(--serif); letter-spacing:-.055em }
+.subtitle { color:var(--muted); margin-top:5px; font-size:14px }
+.icon { width:17px; height:17px; display:inline-block; fill:none; stroke:currentColor; stroke-width:1.65; stroke-linecap:round; stroke-linejoin:round; flex:none; vertical-align:middle }
+.plain-button { display:inline-flex; align-items:center; gap:8px; background:transparent; border:1px solid #bdc8bd; padding:9px 13px; border-radius:8px; font-size:13px; font-weight:570; white-space:nowrap }
+.plain-button:hover, .step-btn:hover { background:#e7ece2; border-color:#88a297 }
+.views { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:14px }
+.figure { overflow:hidden; min-width:0; color:var(--light); background:var(--deep); border:1px solid #263b43; border-radius:14px; box-shadow:0 2px 4px #233b3410; display:flex; flex-direction:column }
+.fig-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:15px 21px 12px; border-bottom:1px solid #a6cdbc22; background:#132831 }
+.fig-name { display:flex; align-items:center; gap:10px; min-width:0 }
+.fig-name .icon { color:#9fc9ba; width:18px; height:18px }
+.fig-head h2 { color:#ecf2e9; font:normal 23px/1.05 var(--serif); letter-spacing:-.035em }
+.figure-meta { color:#b6c9c7; font:11px/1.3 var(--mono); white-space:nowrap }
+.plot { height:clamp(294px,26.3vw,400px); position:relative; isolation:isolate; overflow:hidden; background:radial-gradient(ellipse at 47% 38%,#152e37 0%,#10242e 51%,#0d1e28 100%) }
+.figure.plan .plot { background:radial-gradient(ellipse at center,#163039 0%,#112832 45%,#0e202a 91%) }
+.plot canvas { width:100%; height:100%; display:block }
+#spaceCanvas { cursor:grab; touch-action:none }
+#spaceCanvas:active { cursor:grabbing }
+#planeCanvas { cursor:crosshair; touch-action:manipulation }
+.plot-label { position:absolute; top:13px; left:17px; color:#b0c3c5; font:10px/1.3 var(--mono); pointer-events:none; letter-spacing:.015em }
+.plot-tools { display:flex; position:absolute; bottom:11px; right:13px; gap:2px; background:#10232dec; padding:2px; border:1px solid #698a8b66; border-radius:6px }
+.tool { width:27px; height:26px; display:grid; place-items:center; color:#d1e2df; border:0; padding:0; background:transparent; border-radius:3px }
+.tool:hover,.tool[aria-pressed="true"] { background:#2c454d }
+.side-tool { width:auto; min-width:37px; padding:0 5px; font:11px var(--sans) }
+.tool .icon { width:15px; height:15px }
+.plot-tip { display:none; pointer-events:none; position:absolute; z-index:3; font:11px/1.3 var(--mono); background:#f3f4e9; color:#17352f; padding:5px 8px; border-radius:4px; white-space:nowrap; box-shadow:0 2px 9px #05121758 }
+.fig-foot { display:flex; align-items:center; gap:14px; border-top:1px solid #b1d5c023; padding:9px 17px; min-height:43px; background:#11252e; color:#c4d2cf; font-size:11.5px; line-height:1.2 }
+.layers { display:flex; align-items:center; flex-wrap:wrap; gap:6px }
+.layer { display:inline-flex; align-items:center; gap:6px; border:1px solid transparent; border-radius:5px; background:transparent; color:#c9dbd4; font:inherit; padding:4px 5px; line-height:1.2 }
+.layer:hover { background:#293e46 }
+.layer:disabled { opacity:.48; cursor:default }
+.layer[aria-pressed="false"] { color:#98aaad }
+.switch-dot { width:11px; height:11px; display:grid; place-items:center; border:1px solid #738d90; border-radius:3px }
+.layer[aria-pressed="true"] .switch-dot { color:#113c32; background:var(--mint); border-color:var(--mint) }
+.layer[aria-pressed="true"] .switch-dot::after { content:""; width:5px; height:3px; transform:translateY(-.5px) rotate(-45deg); border-left:1.2px solid; border-bottom:1.2px solid }
+.foot-aside { margin-left:auto; text-align:right; color:#b5c8c8; font-size:11px }
+.selected-key { display:inline-flex; gap:6px; align-items:center; white-space:nowrap }
+.selected-key::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--gold) }
+.controls { margin-top:16px; overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--card) }
+.playline { display:grid; grid-template-columns:auto auto minmax(70px,1fr) auto; align-items:center; gap:18px; padding:15px 22px; border-bottom:1px solid var(--line) }
+.play { display:inline-flex; justify-content:center; align-items:center; gap:7px; color:#fff; border:0; border-radius:7px; background:var(--green); font-size:13px; font-weight:620; padding:10px 12px; min-width:113px }
+.play:hover { background:#0e493f }
+.play .icon { width:14px; height:14px }
+.playline label,.param-name { font-size:14px; font-weight:620; letter-spacing:-.012em }
+.time-state { color:var(--green); font:12px/1.3 var(--mono); min-width:44px; text-align:right }
+input[type="range"] { --fill:50%; appearance:none; -webkit-appearance:none; background:transparent; min-width:0; width:100%; height:23px; margin:0; cursor:pointer; accent-color:var(--green) }
+input[type="range"]::-webkit-slider-runnable-track { height:4px; border-radius:4px; background:linear-gradient(to right,#337d69 var(--fill),#d9dfd5 var(--fill)) }
+input[type="range"]::-moz-range-track { height:4px; border-radius:4px; background:#d9dfd5 }
+input[type="range"]::-moz-range-progress { height:4px; background:#337d69 }
+input[type="range"]::-webkit-slider-thumb { appearance:none; -webkit-appearance:none; width:15px; height:15px; margin-top:-5.5px; border:2px solid #fffefa; border-radius:50%; background:#206650; box-shadow:0 0 0 1px #39735f }
+input[type="range"]::-moz-range-thumb { width:12px; height:12px; border:2px solid #fffefa; border-radius:50%; background:#206650; box-shadow:0 0 0 1px #39735f }
+.parameters { display:grid; grid-template-columns:1.12fr 1.12fr .87fr; padding:17px 0 16px }
+.param { padding:0 22px; min-width:0 }
+.param+.param { border-left:1px solid var(--line) }
+.param-top,.ticks,.crop { display:flex; align-items:center; justify-content:space-between; gap:8px }
+.param-top { margin-bottom:7px }
+.param output { color:var(--green); background:#eaf1e7; border-radius:4px; padding:2px 6px; font:12px var(--mono) }
+.var { font:italic 15px var(--serif); color:var(--muted); margin-left:2px }
+.ticks { color:var(--muted); font-size:11px; margin-top:0 }
+.mid-tick { text-align:center }
+.crop { margin:5px 0 6px; justify-content:flex-start; gap:10px }
+.steps { display:grid; grid-template-columns:27px 34px 27px; overflow:hidden; border:1px solid #bbc8bb; border-radius:5px; background:#fafbf4 }
+.step-btn { padding:1px; color:#345b4e; display:grid; place-items:center; border:0; background:transparent; min-height:25px }
+.step-btn:disabled,.tool:disabled { opacity:.35; cursor:default }
+.step-btn .icon { width:13px; height:13px }
+.steps output { padding:3px 0; text-align:center; background:transparent; font:13px/19px var(--mono); color:var(--ink) }
+.crop-caption { color:var(--muted); font:11px/1.35 var(--mono) }
+.tiny { font:11px/1.4 var(--sans); color:var(--muted) }
+.status-band { display:flex; gap:8px; align-items:baseline; border-top:1px solid #dfe4db; background:#f6f7ef; padding:8px 22px; font-size:12px; color:#4c6157 }
+.status-band .status-mark { width:6px; height:6px; align-self:center; flex:none; border-radius:50%; background:#648b77 }
+.status-band.limited .status-mark { background:#b97c33 }
+.status-band strong { font-weight:650 }
+.rule-band { flex-wrap:wrap; align-items:center; column-gap:10px }
+.rule-choice { display:flex; align-items:center; gap:7px; margin-right:8px; color:#375a4e; white-space:nowrap }
+.rule-choice label { font-weight:610 }
+.rule-choice select { max-width:none; padding:3px 5px; font:12px var(--sans) }
+.inspector { padding:17px 3px 2px; display:grid; grid-template-columns:auto repeat(4,minmax(85px,1fr)) minmax(130px,1.35fr); align-items:center; gap:16px; border-bottom:1px solid var(--line); margin-top:4px; padding-bottom:17px }
+.inspect-choice { display:flex; align-items:center; gap:9px; padding-right:12px }
+.probe { flex:none; width:11px; height:11px; border:1.5px solid #9e632c; border-radius:50%; position:relative }
+.probe::after { content:""; position:absolute; inset:2px; border-radius:50%; background:#a86b32 }
+.inspect-label { color:#38534b; font-weight:600; white-space:nowrap }
+select { color:#193b32; border:1px solid #bdcabe; border-radius:5px; font:12px var(--mono); background:#f9faf2; padding:5px 4px; max-width:108px }
+.readout { min-width:0 }
+.readout dt { margin:0 0 3px; color:var(--muted); font-size:11px }
+.readout dd { margin:0; color:#1c3730; font:14px var(--mono); white-space:nowrap }
+dl { margin:0 }
+.inspector-note { color:var(--muted); text-align:right; font-size:11.5px; line-height:1.45 }
+dialog { position:fixed; border:1px solid #c7d3c8; border-radius:16px; padding:0; background:var(--card); color:var(--ink); width:min(660px,calc(100% - 24px)); max-height:min(86dvh,760px); box-shadow:0 28px 100px #03151047 }
+dialog::backdrop { background:#10292677 }
+.notes-head { display:flex; align-items:center; justify-content:space-between; gap:15px; position:sticky; top:0; background:var(--card); border-bottom:1px solid var(--line); padding:19px 24px; z-index:2 }
+.notes-head h2 { font:normal 29px/1 var(--serif); letter-spacing:-.04em }
+.close-button { border:1px solid var(--line); border-radius:7px; background:transparent; width:30px; height:30px; display:grid; place-items:center }
+.notes { padding:4px 24px 24px; line-height:1.55; font-size:14px }
+.notes section { margin-top:17px }
+.notes h3 { margin-bottom:4px; font:normal 21px/1.1 var(--serif); letter-spacing:-.02em }
+.mathline { background:#edf2e9; padding:9px 12px; border-radius:5px; margin:8px 0; font:16px/1.35 var(--serif); overflow-wrap:anywhere }
+.notes details { border-top:1px solid var(--line); margin-top:17px; padding-top:12px }
+.notes summary { font-weight:620 }
+.notes details p { margin-top:8px }
+.notes a { color:#216050 }
+kbd { font:11px var(--mono); padding:1px 4px; background:#eef1e7; border:1px solid var(--line); border-radius:3px }
+noscript { display:block; padding:12px; color:#682f22; background:#fff8e5 }
+@media(min-width:1550px) { main { padding-top:40px } .mast { margin-bottom:29px } }
+@media(max-width:1000px) {
+  main { padding:24px 20px 25px }
+  .views { grid-template-columns:minmax(0,1.38fr) minmax(0,1fr); gap:10px }
+  .fig-head { padding:13px 15px 11px }
+  .fig-foot { padding:8px 10px; gap:7px }
+  .param { padding:0 15px }
+  .inspector { gap:10px; grid-template-columns:auto repeat(4,minmax(75px,1fr)) }
+  .inspector-note { grid-column:1/-1; text-align:left }
+}
+@media(max-width:720px) {
+  main { padding:21px 13px; max-width:620px }
+  .mast { align-items:flex-start; gap:8px; margin-bottom:17px }
+  .title-group { gap:11px }
+  .mark { width:38px; height:38px; border-radius:10px; margin-top:1px }
+  .mark svg { width:30px; height:30px }
+  h1 { font-size:34px }
+  .subtitle { font-size:12px; line-height:1.4 }
+  .plain-button { padding:7px; font-size:12px; gap:5px }
+  .views { grid-template-columns:minmax(0,1fr); gap:10px }
+  .plot { height:clamp(250px,61vw,340px) }
+  .plan .plot { height:clamp(245px,58vw,306px) }
+  .fig-head h2 { font-size:21px }
+  .playline { padding:12px; gap:9px; grid-template-columns:auto minmax(34px,1fr) auto }
+  .playline label { grid-column:2; grid-row:1; font-size:11px; align-self:end }
+  .playline input { grid-column:2; grid-row:2 }
+  .play,.time-state { grid-row:1/3 }
+  .time-state { grid-column:3; min-width:35px }
+  .play { min-width:86px; padding:10px 8px; font-size:12px }
+  .parameters { grid-template-columns:minmax(0,1fr) minmax(0,1fr); row-gap:14px; padding:14px 0 }
+  .param { padding:0 12px }
+  .param:last-child { grid-column:1/-1; border-left:0; border-top:1px solid var(--line); padding-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap }
+  .param:last-child .param-top,.crop { margin:0 }
+  .param:last-child .tiny { display:none }
+  .param-name { font-size:12px }
+  .status-band { padding:8px 12px; font-size:11px }
+  .inspector { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px }
+  .inspect-choice,.inspector-note { grid-column:1/-1 }
+  .readout dd { font-size:13px }
+  .notes-head { padding:16px }
+  .notes { padding:0 16px 18px }
+}
+@media(max-width:400px) {
+  .mast .plain-button { font-size:0; padding:8px }
+  .mast .plain-button .icon { width:16px; height:16px }
+  .mark { display:none }
+}
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important } }
+#planePlot.dots-only .plot-label,#planePlot.dots-only .plot-tip { display:none!important }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden">
+<defs>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 4.5c3.4-.8 6.3-.1 9 1.7 2.7-1.8 5.6-2.5 9-1.7V19c-3.6-.8-6.5-.1-9 1.6-2.5-1.7-5.4-2.4-9-1.6Z"/><path d="M12 6.2V20"/></symbol>
+  <symbol id="i-space" viewBox="0 0 24 24"><path d="m12 2 8.5 5v10L12 22l-8.5-5V7Z"/><path d="m3.5 7 8.5 5 8.5-5M12 12v10"/></symbol>
+  <symbol id="i-plane" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M9 3.5v17m6-17v17M3.5 9h17m-17 6h17"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 .6 6m-.9-11v5.1H9"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 4 13 8-13 8Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7.5 5v14m9-14v14" stroke-width="4.5"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12m0-12L6 18"/></symbol>
+</defs></svg>
+<main>
+<header class="mast">
+  <div class="title-group">
+    <div class="mark" aria-hidden="true">
+      <svg width="42" height="42" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.15"><g transform="translate(0 44) scale(1 -1)"><ellipse cx="22" cy="14" rx="15" ry="5.3"/><path d="M7 14c.5 10.1 6.6 16.8 15 20 8.4-3.2 14.5-9.9 15-20M11.5 17.8C13 26 17 31.4 22 34c5-2.6 9-8 10.5-16.2M18.5 19.1c.2 6.6 1.6 11.8 3.5 14.9 1.9-3.1 3.3-8.3 3.5-14.9" opacity=".93"/><path d="M22 13.8V34" stroke-dasharray="1.5 2.5" opacity=".65"/><circle cx="22" cy="14" r="2" fill="#f6c78a" stroke="none"/></g></svg>
+    </div>
+    <div><h1>The falling lattice</h1><p class="subtitle">Sites fall from the ℤ² plane onto evenly spaced rings below the pinned origin.</p></div>
+  </div>
+  <button type="button" class="plain-button" id="notesButton" aria-label="Open model notes"><svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>Model notes</button>
+</header>
+<noscript>Enable JavaScript to draw the lattice and use the controls.</noscript>
+<section class="views" aria-label="Linked views of the lattice">
+  <figure class="figure spatial">
+    <div class="fig-head"><div class="fig-name"><svg class="icon" aria-hidden="true"><use href="#i-space"/></svg><h2>Spatial view</h2></div><span class="figure-meta">x, y, z</span></div>
+    <div class="plot" id="spacePlot">
+      <canvas id="spaceCanvas" tabindex="0" aria-label="Interactive 3D view. Drag to orbit or use the arrow keys. Scroll or use plus and minus to zoom. Use the site selector below to inspect a trajectory."></canvas>
+      <span class="plot-label" aria-hidden="true">Drag to orbit</span>
+      <div class="plot-tools" aria-label="Spatial camera controls">
+        <button class="tool side-tool" type="button" id="sideView" aria-pressed="false" aria-label="Side profile" title="View the rings edge-on">Side</button>
+        <button class="tool" type="button" id="zoomOut" aria-label="Zoom out" title="Zoom out"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg></button>
+        <button class="tool" type="button" id="cameraHome" aria-label="Reset camera" title="Reset camera"><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg></button>
+        <button class="tool" type="button" id="zoomIn" aria-label="Zoom in" title="Zoom in"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      </div><span class="plot-tip" id="spaceTip"></span>
+    </div>
+    <figcaption class="fig-foot"><div class="layers" aria-label="Visible geometry">
+      <button type="button" id="pathsToggle" class="layer" aria-pressed="true" title="Show or hide the traveled paths in both views"><span class="switch-dot" aria-hidden="true"></span>Fall paths</button>
+      <button type="button" id="vectorsToggle" class="layer" aria-pressed="false" title="Straight position vectors from the pinned origin to the current sites"><span class="switch-dot" aria-hidden="true"></span>Vectors</button>
+      <button type="button" id="shellToggle" class="layer" aria-pressed="false" title="Show only the selected release shell in both views"><span class="switch-dot" aria-hidden="true"></span>One shell</button>
+    </div><span class="foot-aside selected-key">Selected site</span></figcaption>
+  </figure>
+  <figure class="figure plan">
+    <div class="fig-head"><div class="fig-name"><svg class="icon" aria-hidden="true"><use href="#i-plane"/></svg><h2>Plane projection</h2></div><span class="figure-meta">x, y</span></div>
+    <div class="plot" id="planePlot"><canvas id="planeCanvas" aria-label="Overhead view on the original integer grid. Click a release site or choose it with the site selector below."></canvas>
+      <span class="plot-label" aria-hidden="true">Select a site</span><span class="plot-tip" id="planeTip"></span></div>
+    <figcaption class="fig-foot"><div class="layers">
+      <button type="button" id="dotsToggle" class="layer" aria-pressed="false" title="Black background with outlined black dots at the current positions"><span class="switch-dot" aria-hidden="true"></span>Dots only</button>
+      <button type="button" id="ringsToggle" class="layer" aria-pressed="true" title="Landing rings in both views"><span class="switch-dot" aria-hidden="true"></span>Landing rings</button>
+      <button type="button" id="metricToggle" class="layer" aria-pressed="true" title="One-unit intrinsic distance contours on the release sheet"><span class="switch-dot" aria-hidden="true"></span>Unit contours</button>
+    </div><span class="foot-aside" id="ringsCaption"></span></figcaption>
+  </figure>
+</section>
+<section class="controls" aria-label="Playback and model parameters">
+  <div class="playline">
+    <button class="play" type="button" id="playButton"><svg class="icon" aria-hidden="true"><use id="playSymbol" href="#i-play"/></svg><span id="playLabel">Replay fall</span></button>
+    <label for="fallProgress">Fall progress</label>
+    <input id="fallProgress" type="range" min="0" max="1000" value="1000" step="1" aria-valuetext="100 percent, settled">
+    <output class="time-state" id="timeValue" for="fallProgress">100%</output>
+  </div>
+  <div class="parameters">
+    <div class="param">
+      <div class="param-top"><label class="param-name" for="curvature">Release-sheet curvature <span class="var">κ</span></label><output id="curvatureValue" for="curvature">0.000</output></div>
+      <input id="curvature" type="range" min="-0.036" max="0.036" step="0.001" value="0">
+      <div class="ticks" aria-hidden="true"><span>Hyperbolic</span><span class="mid-tick">Flat</span><span>Spherical</span></div>
+    </div>
+    <div class="param">
+      <div class="param-top"><label class="param-name" for="shellSpacing">Ring spacing <span class="var">Δ</span></label><output for="shellSpacing" id="spacingValue"></output></div>
+      <input id="shellSpacing" type="range" min="0.25" max="0.98" step="0.01" value="0.82">
+      <div class="ticks" aria-hidden="true"><span>Tighter rings</span><span>Wider rings</span></div>
+    </div>
+    <div class="param">
+      <div class="param-top"><span class="param-name" id="radiusLabel">Lattice radius <span class="var">R</span></span></div>
+      <div class="crop"><div class="steps" role="group" aria-labelledby="radiusLabel">
+        <button type="button" class="step-btn" id="radiusLess" aria-label="Decrease lattice radius"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg></button>
+        <output id="radiusValue" aria-label="Lattice radius">5</output>
+        <button type="button" class="step-btn" id="radiusMore" aria-label="Increase lattice radius"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      </div><span class="crop-caption" id="nodeCount"></span></div>
+      <div class="tiny">All sites inside the disk of radius R.</div>
+    </div>
+  </div>
+  <div class="status-band rule-band"><div class="rule-choice"><label for="normRule">Landing vector lengths</label><select id="normRule">
+    <option value="uniform" selected>Equal steps</option><option value="source">Release weights</option>
+  </select></div><span class="status-mark" aria-hidden="true"></span><span id="shellStatus"></span></div>
+</section>
+<section class="inspector" aria-label="Selected lattice site">
+  <div class="inspect-choice"><span class="probe" aria-hidden="true"></span><label class="inspect-label" for="siteSelect">Selected site</label><select id="siteSelect"></select></div>
+  <dl class="readout"><dt>Target norm D</dt><dd id="readWeight">—</dd></dl>
+  <dl class="readout"><dt>Distance from O</dt><dd id="readDistance">—</dd></dl>
+  <dl class="readout"><dt>Path traveled</dt><dd id="readPath">—</dd></dl>
+  <dl class="readout"><dt>Height z</dt><dd id="readHeight">—</dd></dl>
+  <div class="inspector-note" id="siteNote"></div>
+</section>
+</main>
+<dialog id="notesDialog" aria-labelledby="notesTitle">
+  <div class="notes-head"><h2 id="notesTitle">Model notes</h2><button type="button" class="close-button" id="closeNotes" aria-label="Close model notes" autofocus><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  <div class="notes">
+    <section><h3>From the upper grid to landing rings</h3><p>Each integer site (i, j) in the release disk starts at z = 0. The origin O stays pinned there. Sort the distinct positive values of r = √(i² + j²) into shells r₁ &lt; r₂ &lt; … &lt; rₘ. Every site in shell j lands on the circle of horizontal radius jΔ. The innermost ring is Δ from the axis, and each successive ring is another Δ out.</p>
+      <p>Shells include noninteger radii such as √2 and √5. On each landing circle the sites take equal angular steps of 2π divided by the shell’s population. Their cyclic order is preserved. The guide rotates each regular polygon to minimize the sum of squared angular shifts from the release sites.</p></section>
+    <section><h3>The vector that catches the site</h3><p>Each edge O → P has a release weight ℓ. The straight arrow from O to the current P has norm d = √(ρ² + z²), where ρ = √(x² + y²). The ring catches the site when its horizontal radius is jΔ and d reaches the ring’s assigned vector length Dⱼ.
+      </p><p><b>Equal steps</b> sets Dⱼ = jℓₘ/m for m shells. Consecutive landing rings are equally spaced both in the xy plane and in distance from O. <b>Release weights</b> sets Dⱼ = ℓⱼ, preserving each edge’s original weight as its landing norm. The xy gaps stay uniform in both settings.</p>
+      <p class="mathline">ρⱼ = jΔ &emsp; zⱼ = −√(Dⱼ² − ρⱼ²)</p>
+      <p>The negative root places every ring below the upper lattice. The ring spacing keeps the smaller rings higher and the larger rings lower. During flight d can vary. The inspector also integrates distance along the curved trajectory from release to the current point.</p></section>
+    <section><h3>Watching the fall</h3><p>All sites are released together from rest. Their vertical position follows z = −gt²/2 until each ring catches its sites. The inner rings land first. The progress slider runs from release to the instant the outermost ring lands.</p>
+      <p>The model specifies lateral guides because the landing circles alone allow many flight paths. For a site’s fraction q of its own fall time, the guide uses b = 3q² − 2q³ to interpolate both its grid radius and its unwrapped azimuth. This starts the horizontal motion from rest and ends it smoothly at the ring. Playback holds each site in place after landing.</p></section>
+    <section><h3>What curvature changes</h3><p>κ gives the horizontal release sheet a constant-curvature metric. A unit at the origin agrees with a grid unit. The release weight of a site at grid radius r is its intrinsic distance from O along that sheet.</p>
+      <p class="mathline">ℓκ(r) = ∫₀ʳ ds / (1 + κs²/4)</p>
+      <p>At κ = 0 the release weight equals r. Negative κ lengthens it and positive κ shortens it. The landing rule uses these weights to set the target norms. Turn on <b>Unit contours</b> to see one-unit intervals of this intrinsic distance on the original grid. Landing gaps, position vectors and traveled paths are measured in the displayed Euclidean space.</p></section>
+    <details><summary>How the uniform gap is chosen</summary><p>The gap slider chooses a fraction of the widest spacing that keeps this finite set of rings in order. Its readout gives the actual Δ in grid units. Changing the lattice radius or curvature recomputes this spacing. With D₀ = 0 the bound is</p>
+      <p class="mathline">Δ<sub>max</sub> = minⱼ { rⱼ / j, √[(Dⱼ² − Dⱼ₋₁²) / (2j − 1)] }.</p>
+      <p>Using 0 &lt; Δ &lt; Δ<sub>max</sub> places every target ring inside its release radius. It also makes Dⱼ² − (jΔ)² strictly increase with j, so each outer ring lands lower than the preceding one. The radial gap is common across shells. The distance between adjacent sites around one ring depends on how many sites that shell contains.</p></details>
+    <details><summary>Reading and operating the views</summary><p>Hollow marks denote release sites. Filled marks show the current positions. The cross at O is the fixed origin. Both views highlight the same selected trajectory and landing ring in amber. <b>One shell</b> isolates all the sites with that release radius. <b>Vectors</b> draws the directed edges.</p>
+      <p>Click a site in either view or choose its integer coordinates below the plots. The camera keeps O fixed while fitting the complete descent. Drag the spatial view or use its arrow keys to orbit. Scroll, pinch or press <kbd>+</kbd> / <kbd>−</kbd> to zoom. <b>Side</b> shows ring heights in profile. <kbd>Home</kbd> restores the opening view.</p></details>
+  </div>
+</dialog>
+<script>
+"use strict";
+// Distances are in lattice units. The plane uses stereographic coordinates
+// scaled so its metric at the origin agrees with the coordinate grid.
+const LatticeGeometry = (() => {
+  const TAU = 2 * Math.PI;
+  const segments = 48;
+  function metric(k) {
+    if (k === 0) return {radial:r => r, chart:u => u};
+    const a = Math.sqrt(Math.abs(k));
+    if (k > 0) return {
+      radial:r => 2 * Math.atan(a*r/2)/a,
+      chart:u => 2 * Math.tan(a*u/2)/a
+    };
+    return {
+      radial:r => 2 * Math.atanh(a*r/2)/a,
+      chart:u => 2 * Math.tanh(a*u/2)/a
+    };
+  }
+  function topology(radius) {
+    const groups = new Map();
+    for (let i = -radius; i <= radius; i++) {
+      for (let j = -radius; j <= radius; j++) {
+        const squared = i*i + j*j;
+        if (!squared || squared > radius*radius) continue;
+        if (!groups.has(squared)) groups.set(squared,[]);
+        const angle = (Math.atan2(j,i) + TAU) % TAU;
+        groups.get(squared).push({i,j,id:i+","+j,angle});
+      }
+    }
+    return Array.from(groups.entries()).sort((a,b) => a[0]-b[0]).map(([squared, members]) => {
+      members.sort((a,b) => a.angle-b.angle);
+      return {squared,r:Math.sqrt(squared),members};
+    });
+  }
+  function localPosition(site, q) {
+    const shell=site.shell;
+    if(q<=0) return {x:site.i,y:site.j,z:0,rho:shell.r,phase:0};
+    const b=q*q*(3-2*q);
+    const rho=q===1?shell.radius:shell.r+(shell.radius-shell.r)*b;
+    const phi=site.angle+site.turn*b;
+    return {x:rho*Math.cos(phi),y:rho*Math.sin(phi),z:-shell.drop*q*q,rho,phase:q};
+  }
+  function position(site, progress) {
+    const q=Math.max(0,Math.min(1,progress/site.shell.landsAt));
+    return localPosition(site,q);
+  }
+  function pathLength(site, q) {
+    if(q<=0) return 0;
+    const {r,radius,drop}=site.shell;
+    const dr=radius-r;
+    function speed(t) {
+      const b=t*t*(3-2*t), derivative=6*t*(1-t);
+      const rho=r+dr*b;
+      return Math.hypot(dr*derivative,rho*site.turn*derivative,2*drop*t);
+    }
+    // Simpson integration of speed in cylindrical coordinates.
+    const count=32, step=q/count;
+    let sum=speed(0)+speed(q);
+    for(let i=1;i<count;i++) sum+=(i%2?4:2)*speed(i*step);
+    return sum*step/3;
+  }
+  function build(layout,k,spacing,rule="uniform") {
+    const geometry=metric(k);
+    const shells=[],sites=[],byId=new Map();
+    const vectorStep=geometry.radial(layout[layout.length-1].r)/layout.length;
+    // Both bounds are necessary: targets stay inside the release disk and
+    // squared drop heights strictly increase from one exact shell to the next.
+    let gapLimit=Infinity, previousLength=0;
+    for(const {r,squared,members} of layout) {
+      const rank=shells.length+1, weight=geometry.radial(r);
+      const length=rule==="source"?weight:rank*vectorStep;
+      const squaredStep=(length-previousLength)*(length+previousLength);
+      gapLimit=Math.min(gapLimit,r/rank,Math.sqrt(squaredStep/(2*rank-1)));
+      shells.push({r,squared,rank,weight,length,count:members.length});
+      previousLength=length;
+    }
+    const gap=spacing*gapLimit;
+    for(const shell of shells) {
+      shell.radius=shell.rank*gap;
+      shell.drop=Math.sqrt((shell.length-shell.radius)*(shell.length+shell.radius));
+    }
+    const maxDrop=shells[shells.length-1].drop;
+    for(const shell of shells) {
+      shell.landsAt=Math.sqrt(shell.drop/maxDrop);
+      const members=layout[shell.rank-1].members;
+      const step=TAU/shell.count;
+      const phase=members.reduce((sum,m,index)=>sum+(m.angle-index*step),0)/members.length;
+      members.forEach((member,index)=>{
+        const site={...member,shell,turn:phase+step*index-member.angle};
+        site.trail=Array.from({length:segments+1},(_,n)=>localPosition(site,n/segments));
+        sites.push(site);byId.set(site.id,site);
+      });
+    }
+    return {geometry,shells,sites,byId,k,gap,vectorStep,maxDrop,segments};
+  }
+  return {metric,topology,build,position,pathLength,segments};
+})();
+</script>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const TAU = Math.PI*2;
+const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+const number = (v,n=2) => (Math.abs(v) < .5 * 10**(-n) ? 0 : v).toFixed(n).replace("-","−");
+const integer = v => String(v).replace("-","−");
+const coords = (i,j) => "("+integer(i)+", "+integer(j)+")";
+const mono = 'ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace';
+const colors = {mint:"#8ee3c3", gold:"#ffc781", anchor:"#f4f5e9", ink:"#0e212b"};
+const origin = {x:0,y:0,z:0,rho:0,phase:0};
+const home = {yaw:-0.93, pitch:0.22, zoom:1};
+const state = {radius:5, k:0, spacing:.82, normRule:"uniform", progress:1, selected:"3,4", playing:false, paths:true, vectors:false, dotsOnly:false, rings:true, metricUnits:true, oneShell:false};
+const camera = {...home};
+let layout = LatticeGeometry.topology(state.radius);
+let model = LatticeGeometry.build(layout,state.k,state.spacing,state.normRule);
+let request = 0, lastFrame = null;
+function surface(id,tipId) {
+  const canvas = $(id);
+  return {canvas, ctx:canvas.getContext("2d"), tip:$(tipId), w:0,h:0,ratio:0,hits:[]};
+}
+const space = surface("spaceCanvas","spaceTip"), plane = surface("planeCanvas","planeTip");
+
+function rectSize(view) {
+  const {canvas,ctx} = view;
+  const box = canvas.getBoundingClientRect();
+  const ratio = Math.min(2.5,window.devicePixelRatio||1);
+  const width = Math.max(1,Math.round(box.width*ratio));
+  const height = Math.max(1,Math.round(box.height*ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width=width; canvas.height=height;
+  }
+  view.w=box.width; view.h=box.height; view.ratio=ratio;
+  ctx.setTransform(width / Math.max(1,box.width),0,0,height / Math.max(1,box.height),0,0);
+  ctx.clearRect(0,0,view.w,view.h);
+  ctx.lineCap="round"; ctx.lineJoin="round";
+  view.hits = [];
+}
+function stroke(ctx,color,width=1,dash=[]) {
+  ctx.strokeStyle=color; ctx.lineWidth=width; ctx.setLineDash(dash);
+  ctx.stroke(); ctx.setLineDash([]);
+}
+function line(ctx,a,b,color,width=1,dash=[]) {
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); stroke(ctx,color,width,dash);
+}
+function circle(ctx,p,r,fill,outline=null,width=1) {
+  ctx.beginPath(); ctx.arc(p.x,p.y,r,0,TAU);
+  if (fill) {ctx.fillStyle=fill; ctx.fill();}
+  if (outline) stroke(ctx,outline,width);
+}
+function arrowHead(ctx,a,b,color,size) {
+  const dx=b.x-a.x,dy=b.y-a.y, d=Math.hypot(dx,dy);
+  if(d<.9) return;
+  const ux=dx/d,uy=dy/d;
+  ctx.beginPath();
+  ctx.moveTo(b.x-size*ux+size*.44*uy,b.y-size*uy-size*.44*ux);
+  ctx.lineTo(b.x,b.y);
+  ctx.lineTo(b.x-size*ux-size*.44*uy,b.y-size*uy+size*.44*ux);
+  stroke(ctx,color,size>4?1.25:.9);
+}
+function label(ctx,txt,x,y,color="#b3c8c6",size=10,align="left",back=false) {
+  ctx.font=size+"px "+mono; ctx.textAlign=align; ctx.textBaseline="middle";
+  if(back) {
+    ctx.strokeStyle="#10232c"; ctx.lineWidth=3.5; ctx.lineJoin="round"; ctx.strokeText(txt,x,y);
+  }
+  ctx.fillStyle=color; ctx.fillText(txt,x,y);
+}
+function paintAnchor(ctx,p,selected) {
+  const col = selected ? colors.gold : colors.anchor;
+  circle(ctx,p,5.9,colors.ink,col,1.1);
+  line(ctx,{x:p.x-3,y:p.y},{x:p.x+3,y:p.y},col,1);
+  line(ctx,{x:p.x,y:p.y-3},{x:p.x,y:p.y+3},col,1);
+}
+function marker(ctx,p,active,scale=1) {
+  const r=(active?4.65:2.35)*scale;
+  if(active) {
+    circle(ctx,p,r+3.6,"#ffc78117","#ffc78170",.8);
+    circle(ctx,p,r,colors.gold,colors.ink,1.35);
+  } else circle(ctx,p,r,"#8ddfc0","#173832",.56);
+}
+function traced(ctx,site,current,project,color,width,dash=[]) {
+  if (current.phase<=0) return;
+  const last = Math.min(model.segments,Math.floor(current.phase*model.segments));
+  const p0=project(site.trail[0]);
+  ctx.beginPath(); ctx.moveTo(p0.x,p0.y);
+  for(let i=1;i<=last;i++) {
+    const p=project(site.trail[i]); ctx.lineTo(p.x,p.y);
+  }
+  if(last<model.segments) {const p=project(current); ctx.lineTo(p.x,p.y);}
+  stroke(ctx,color,width,dash);
+}
+function pathArrow(ctx,site,current,project) {
+  if(current.phase<.10) return;
+  const n=Math.floor(.70*current.phase*model.segments);
+  const a=project(site.trail[n-1]), b=project(site.trail[n+1]);
+  arrowHead(ctx,a,b,colors.gold,5.3);
+}
+function drawVector(ctx,current,project,active) {
+  const a=project(origin), b=project(current);
+  const col=active?"#ffe2b2":"#c2d0da61";
+  line(ctx,a,b,col,active?1.5:.70,active?[5,3]:[3,4]);
+  const head={x:a.x+.78*(b.x-a.x),y:a.y+.78*(b.y-a.y)};
+  arrowHead(ctx,a,head,col,active?5:3);
+}
+function visibleShells(selected) {
+  return state.oneShell && selected ? [selected.shell] : model.shells;
+}
+function drawSpatialRings(ctx,project,selected,front) {
+  if(!state.rings) return;
+  // The two halves let near arcs read in front of the trajectory cloud.
+  const first=camera.yaw+(front?-Math.PI/2:Math.PI/2);
+  for(const shell of visibleShells(selected)) {
+    const active=shell===selected?.shell;
+    const landed=state.progress>=shell.landsAt;
+    ctx.beginPath();
+    for(let i=0;i<=40;i++) {
+      const a=first+Math.PI*i/40;
+      const p=project({x:shell.radius*Math.cos(a),y:shell.radius*Math.sin(a),z:-shell.drop});
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    }
+    const color=active?(front?"#fbc581d9":"#fbc58182"):(front?"#8ed9c4b3":"#73aeb578");
+    ctx.globalAlpha=landed?1:.48;
+    stroke(ctx,color,active?1.35:front?1.0:.8,landed?[]:[3,4]);
+  }
+  ctx.globalAlpha=1;
+}
+function drawPlanRings(ctx,project,scale,selected) {
+  if(!state.rings) return;
+  const o=project(origin);
+  for(const shell of visibleShells(selected)) {
+    const active=shell===selected?.shell;
+    const landed=state.progress>=shell.landsAt;
+    ctx.beginPath();ctx.arc(o.x,o.y,shell.radius*scale,0,TAU);
+    ctx.globalAlpha=landed?1:.54;
+    stroke(ctx,active?"#f9c180cd":"#92d7bf85",active?1.3:.85,landed?[]:[3,3]);
+  }
+  ctx.globalAlpha=1;
+}
+function hit(view,p,id,kind) {
+  if(p.x < -10 || p.y < -10 || p.x>view.w+10 || p.y>view.h+10) return;
+  view.hits.push({x:p.x,y:p.y,id,kind,depth:p.depth||0});
+}
+function makeSpaceProjection(view) {
+  const {w,h}=view;
+  const cy=Math.cos(camera.yaw),sy=Math.sin(camera.yaw);
+  const ce=Math.cos(camera.pitch),se=Math.sin(camera.pitch);
+  const R=state.radius;
+  const tilt=Math.abs(se);
+  const top=Math.max(1.13*R*tilt,.23*R*ce);
+  // At fixed fall phase all members of a shell have the same height and
+  // horizontal radius. Fit their full circular envelope around a fixed pin.
+  let bottom=R*tilt;
+  for(const shell of model.shells) {
+    // The lowest projected point is drop*q²*cos(e) + rho(q)*|sin(e)|.
+    // Its derivative has at most one interior zero, a minimum; the maximum
+    // occurs at release or at landing.
+    const landing=ce*shell.drop+tilt*shell.radius;
+    bottom=Math.max(bottom,landing);
+  }
+  const leftRoom=w<380?23:33;
+  const midX=w*.5, midY=h*(.22+.28*tilt);
+  const base=Math.min((w-2*leftRoom)/(2.2*R),(midY-16)/top,(h-midY-19)/bottom);
+  const scale=base*camera.zoom;
+  function project(p) {
+    const radial=cy*p.x+sy*p.y;
+    return {x:midX+(-sy*p.x+cy*p.y)*scale,
+      y:midY-(p.z*ce-radial*se)*scale, depth:radial*ce+p.z*se};
+  }
+  return {project,scale,ce,se};
+}
+function spatialGrid(ctx,project,scale) {
+  const R=state.radius;
+  for(let i=-R;i<=R;i++) {
+    if(i===0) continue;
+    const ext=Math.sqrt(Math.max(0,R*R-i*i));
+    const col=i%2===0?"#8cbdba3b":"#83aeb02b";
+    line(ctx,project({x:i,y:-ext,z:0}),project({x:i,y:ext,z:0}),col,.7);
+    line(ctx,project({x:-ext,y:i,z:0}),project({x:ext,y:i,z:0}),col,.7);
+  }
+  ctx.beginPath();
+  for(let j=0;j<=96;j++) {
+    const a=TAU*j/96, p=project({x:R*Math.cos(a),y:R*Math.sin(a),z:0});
+    if(j===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  }
+  stroke(ctx,"#a0cec65c",.9,[2,4]);
+  for(const key of ["x","y"]) {
+    const xy=r => key==="x"?{x:r,y:0,z:0}:{x:0,y:r,z:0};
+    const end=project(xy(R*1.10));
+    line(ctx,project(xy(-R*1.04)),end,"#a3c5c17a",.9);
+    arrowHead(ctx,project(xy(R)),end,"#b6d1ceba",4.2);
+    const lab=project(xy(R*1.145)); label(ctx,key,lab.x,lab.y,"#c2d4d0",11,"center",true);
+  }
+  const up=project({x:0,y:0,z:R*.23});
+  const zero=project(origin);
+  line(ctx,zero,up,"#c4d8d0a8",.9);
+  arrowHead(ctx,zero,up,"#d3e2d9ae",4.3);
+  label(ctx,"z",up.x+7,up.y-1,"#d5e3d9",11,"left",true);
+  const rim=project({x:Math.sin(camera.yaw)*R,y:-Math.cos(camera.yaw)*R,z:0});
+  if(rim.x>57 && camera.zoom<=1.35) {
+    const elbow={x:rim.x-12,y:rim.y-9};
+    line(ctx,{x:rim.x-2,y:rim.y},elbow,"#9db9b087",.7);
+    label(ctx,"z = 0",elbow.x-4,elbow.y,"#b3cac3",10,"right",true);
+  }
+  const deep=model.maxDrop;
+  line(ctx,zero,project({x:0,y:0,z:-deep}),"#9dbec24e",.9,[3,5]);
+  if(scale>5 && camera.zoom<1.65) {
+    for(let n=2;n<deep-.2;n+=2) {
+      const p=project({x:0,y:0,z:-n});
+      line(ctx,{x:p.x-3,y:p.y},{x:p.x+3,y:p.y},"#a2c1c372",.8);
+    }
+  }
+}
+function drawSpace(currents) {
+  rectSize(space);
+  const {ctx,w,h}=space;
+  if(w===0||h===0) return;
+  const {project,scale}=makeSpaceProjection(space);
+  spatialGrid(ctx,project,scale);
+  const selected=model.byId.get(state.selected);
+  drawSpatialRings(ctx,project,selected,false);
+  const order=currents.map(({site,p})=>({site,p,start:project(site.trail[0]),now:project(p)}))
+    .sort((a,b)=>(a.start.depth+a.now.depth)-(b.start.depth+b.now.depth));
+  if(state.vectors) for(const row of order) if(row.site.id!==state.selected) drawVector(ctx,row.p,project,false);
+  const grad=ctx.createLinearGradient(0,h*.09,0,h*.95);
+  grad.addColorStop(0,"#93acba"); grad.addColorStop(.48,"#84b1b5"); grad.addColorStop(1,"#89cbba");
+  const density=model.sites.length>220?.85:1;
+  if(state.paths) for(const {site,p,start} of order) {
+    if(site===selected) continue;
+    const depth=clamp((start.depth/state.radius+1)/2,0,1);
+    const opacity=state.oneShell ? 0.53+0.38*depth : 0.19+0.22*depth;
+    ctx.globalAlpha=opacity*density;
+    traced(ctx,site,p,project,grad,.83+depth*.20);
+  }
+  ctx.globalAlpha=1;
+  for(const {site,start} of order) {
+    circle(ctx,start,model.sites.length>230?1.38:1.75,colors.ink,"#a5d1c2ab",.7);
+    hit(space,start,site.id,"source");
+  }
+  drawSpatialRings(ctx,project,selected,true);
+  const endpoints=order.slice().sort((a,b)=>a.now.depth-b.now.depth);
+  for(const {site,now} of endpoints) {
+    if(site!==selected) marker(ctx,now,false,model.sites.length>220?.8:.95);
+    hit(space,now,site.id,"end");
+  }
+  if(selected) {
+    const row=order.find(s=>s.site===selected);
+    if(state.paths) {traced(ctx,selected,row.p,project,colors.gold,2.05);pathArrow(ctx,selected,row.p,project);}
+    if(state.vectors) drawVector(ctx,row.p,project,true);
+    circle(ctx,row.start,3.25,colors.ink,colors.gold,1.25);
+    marker(ctx,row.now,true);
+  }
+  const o=project(origin);
+  paintAnchor(ctx,o,!selected);
+  hit(space,o,"0,0","root");
+  label(ctx,"pinned O",o.x-9,o.y-9,colors.anchor,10,"right",true);
+  // A screen-space gravity arrow points along the projection of the vertical.
+  if(w>360) {
+    const baseY=h-18;
+    const g0={x:18,y:baseY-20},g1={x:18,y:baseY};
+    line(ctx,g0,g1,"#9db9b6",1);
+    arrowHead(ctx,g0,g1,"#9db9b6",4);
+    label(ctx,"gravity",26,baseY-5,"#9db9b6",10);
+  }
+}
+function planGrid(ctx,project,scale) {
+  const R=state.radius, o=project(origin);
+  const at=(x,y)=>project({x,y});
+  const extent=R+.20;
+  for(let n=-R;n<=R;n++) {
+    if(n===0) continue;
+    const col=n%2===0?"#8cb6b531":"#89b0b023";
+    line(ctx,at(-extent,n),at(extent,n),col,.7);
+    line(ctx,at(n,-extent),at(n,extent),col,.7);
+  }
+  if(state.metricUnits) {
+    const max=model.geometry.radial(R);
+    for(let unit=1;unit<=Math.floor(max+1e-8);unit++) {
+      const radius=model.geometry.chart(unit)*scale;
+      ctx.beginPath();ctx.arc(o.x,o.y,radius,0,TAU);
+      stroke(ctx,unit%2===0?"#97c1db90":"#89abc463",unit%2===0?.86:.7,[2,4]);
+    }
+  }
+  const tip=(R+.49);
+  for(const key of ["x","y"]) {
+    const point=v=>key==="x"?at(v,0):at(0,v);
+    const col="#a7c4c4a0", end=point(tip);
+    line(ctx,point(-R-.28),end,col,.95);
+    arrowHead(ctx,point(R),end,col,3.8);
+    label(ctx,key,end.x+(key==="x"?7:8),end.y+(key==="y"?0:1),"#d9e5db",11,"center",true);
+  }
+}
+function planLabels(ctx,project) {
+  const R=state.radius;
+  const step=R>=8?4:R>=4?2:1;
+  for(let n=-Math.floor(R/step)*step;n<=R;n+=step) {
+    if(!n) continue;
+    const x=project({x:n,y:0}),y=project({x:0,y:n});
+    line(ctx,{x:x.x,y:x.y-2.3},{x:x.x,y:x.y+2.3},"#a8c7c58a",.75);
+    line(ctx,{x:y.x-2.3,y:y.y},{x:y.x+2.3,y:y.y},"#a8c7c58a",.75);
+    label(ctx,integer(n),x.x,x.y+10,"#b8cdc8",9,"center",true);
+    label(ctx,integer(n),y.x-6,y.y,"#b8cdc8",9,"right",true);
+  }
+}
+function drawPlane(currents) {
+  rectSize(plane);
+  const {ctx,w,h}=plane;
+  if(w===0||h===0) return;
+  const R=state.radius;
+  const scale=Math.min((w-50)/(2*R+1),(h-31)/(2*R+1));
+  const project=p=>({x:w*.50+p.x*scale,y:h*.5-p.y*scale});
+  if(state.dotsOnly) {
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,0,w,h);
+    for(const {site,p} of currents) {
+      const at=project(p);
+      circle(ctx,at,2.5,"#000","#ddd",1);
+      hit(plane,at,site.id,"end");
+    }
+    const pin=project(origin);
+    circle(ctx,pin,2.5,"#000","#ddd",1);
+    hit(plane,pin,"0,0","root");
+    return;
+  }
+  planGrid(ctx,project,scale);
+  const selected=model.byId.get(state.selected);
+  drawPlanRings(ctx,project,scale,selected);
+  if(state.vectors) for(const {site,p} of currents) if(site!==selected) drawVector(ctx,p,project,false);
+  if(state.paths) for(const {site,p} of currents) {
+    if(site===selected) continue;
+    traced(ctx,site,p,project,state.oneShell?"#86bbcad0":model.sites.length>220?"#8aabba41":"#a0c2cc62",.87);
+  }
+  for(const {site,p} of currents) {
+    const start=project(site.trail[0]), now=project(p);
+    circle(ctx,start,model.sites.length>220?1.56:1.92,colors.ink,"#a9d5c9c4",.72);
+    hit(plane,start,site.id,"source");
+    if(site!==selected) marker(ctx,now,false,.85);
+    hit(plane,now,site.id,"end");
+  }
+  planLabels(ctx,project);
+  if(state.metricUnits) {
+    const maxUnit=Math.floor(model.geometry.radial(R));
+    if(maxUnit>=2) {
+      const unit=maxUnit>=6?2*Math.floor(maxUnit*.37):Math.max(1,maxUnit-1);
+      const rr=model.geometry.chart(unit), phi=2.24;
+      const lp=project({x:rr*Math.cos(phi),y:rr*Math.sin(phi)});
+      label(ctx,"ℓ="+unit,lp.x-3,lp.y-4,"#afcde0",9,"right",true);
+    }
+  }
+  if(selected) {
+    const row=currents.find(r=>r.site===selected);
+    const now=project(row.p),start=project(selected.trail[0]);
+    if(state.paths) {traced(ctx,selected,row.p,project,colors.gold,2);pathArrow(ctx,selected,row.p,project);}
+    if(state.vectors) drawVector(ctx,row.p,project,true);
+    circle(ctx,start,3,colors.ink,colors.gold,1.25);
+    marker(ctx,now,true,.96);
+    // Place the site label on the inward side near the edges of a narrow canvas.
+    const toLeft=start.x>w-64, below=start.y<24;
+    const offsetX=toLeft?-8:8, offsetY=below?12:-12;
+    const elbow={x:start.x+offsetX,y:start.y+offsetY*.75};
+    line(ctx,{x:start.x+offsetX*.26,y:start.y+offsetY*.24},elbow,"#e6b574",.7);
+    label(ctx,coords(selected.i,selected.j),elbow.x+(toLeft?-2:2),start.y+offsetY,colors.gold,10,toLeft?"right":"left",true);
+  }
+  const o=project(origin);
+  paintAnchor(ctx,o,!selected); hit(plane,o,"0,0","root");
+  label(ctx,"O",o.x+7,o.y-8,colors.anchor,10,"left",true);
+}
+function fillSlider(input) {
+  const pct=100*(Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min));
+  input.style.setProperty("--fill",pct+"%");
+}
+function updatePlayControls() {
+  $("playLabel").textContent=state.playing?"Pause":state.progress>=1?"Replay fall":"Play fall";
+  $("playSymbol").setAttribute("href",state.playing?"#i-pause":"#i-play");
+  $("fallProgress").value=String(Math.round(state.progress*1000));
+  const percent=Math.round(100*state.progress);
+  $("fallProgress").setAttribute("aria-valuetext",percent+" percent"+(state.progress>=1?", settled":state.progress<=0?", release":""));
+  $("timeValue").textContent=percent+"%";
+  fillSlider($("fallProgress"));
+}
+function updateInspector() {
+  const selected=model.byId.get(state.selected);
+  const p=selected?LatticeGeometry.position(selected,state.progress):origin;
+  $("readWeight").textContent=selected?number(selected.shell.length,3):"—";
+  $("readDistance").textContent=number(Math.hypot(p.rho,p.z),3);
+  $("readPath").textContent=selected?"≈ "+number(LatticeGeometry.pathLength(selected,p.phase),3):"0.000";
+  $("readHeight").textContent=number(p.z,3);
+  if(!selected) {
+    $("siteNote").textContent="Pinned origin · the root of the graph";
+  } else {
+    const shell=selected.shell;
+    const status=p.phase>=1?"landed":p.phase>0?"falling":"release";
+    $("siteNote").textContent="Ring "+shell.rank+" · "+shell.count+" sites · "+status+" · release ℓ = "+number(shell.weight,3);
+  }
+  const landed=model.shells.filter(shell=>state.progress>=shell.landsAt).length;
+  const gapText="xy gap "+number(model.gap,3);
+  const normText=state.normRule==="uniform"?" · origin-distance step "+number(model.vectorStep,3):" · each landing norm equals its release weight";
+  $("shellStatus").textContent=landed+" of "+model.shells.length+" rings landed · "+gapText+normText;
+}
+function updateOptions() {
+  const select=$("siteSelect"), frag=document.createDocumentFragment();
+  const pinned=new Option("(0, 0)","0,0");
+  frag.appendChild(pinned);
+  for(const [index,group] of layout.entries()) {
+    const options=document.createElement("optgroup");
+    options.label="Ring "+(index+1)+" · r = "+(Number.isInteger(group.r)?group.r:"√"+group.squared);
+    for(const site of group.members) options.appendChild(new Option(coords(site.i,site.j),site.id));
+    frag.appendChild(options);
+  }
+  select.replaceChildren(frag);
+  select.value=state.selected;
+}
+function updateParameters() {
+  const k=state.k;
+  const curvatureText=(k>0?"+":"")+number(k,3);
+  $("curvatureValue").textContent=curvatureText;
+  $("curvature").setAttribute("aria-valuetext",curvatureText+(k<0?", hyperbolic":k>0?", spherical":", flat"));
+  $("spacingValue").textContent=number(model.gap,3);
+  $("shellSpacing").setAttribute("aria-valuetext",number(model.gap,3)+" grid units between consecutive rings");
+  $("nodeCount").textContent=(model.sites.length+1)+" sites · "+model.sites.length+" edges";
+  $("radiusValue").textContent=String(state.radius);
+  $("radiusLess").disabled=state.radius<=2; $("radiusMore").disabled=state.radius>=10;
+  fillSlider($("curvature")); fillSlider($("shellSpacing"));
+  $("ringsCaption").textContent="Δ = "+number(model.gap,3);
+}
+const layerControls=[
+  ["pathsToggle","paths"],["vectorsToggle","vectors"],["shellToggle","oneShell"],
+  ["dotsToggle","dotsOnly"],["ringsToggle","rings"],["metricToggle","metricUnits"]
+];
+function refreshLayers() {
+  $("planePlot").classList.toggle("dots-only",state.dotsOnly);
+  $("shellToggle").disabled=state.selected==="0,0";
+  for(const [id,key] of layerControls) $(id).setAttribute("aria-pressed",String(state[key]));
+}
+function frame(now) {
+  request=0;
+  if(state.playing) {
+    if(lastFrame!==null) state.progress=Math.min(1,state.progress+Math.min(64,now-lastFrame)/5400);
+    lastFrame=now;
+    if(state.progress>=1) {state.playing=false;lastFrame=null;}
+    updatePlayControls();
+  }
+  const shell=model.byId.get(state.selected)?.shell;
+  const visible=state.oneShell && shell ? model.sites.filter(site=>site.shell===shell) : model.sites;
+  const currents=visible.map(site=>({site,p:LatticeGeometry.position(site,state.progress)}));
+  drawSpace(currents); drawPlane(currents); updateInspector();
+  if(state.playing) schedule();
+}
+function schedule() { if(!request) request=requestAnimationFrame(frame); }
+function pause() { state.playing=false;lastFrame=null; updatePlayControls(); }
+function hideTips() { space.tip.style.display="none"; plane.tip.style.display="none"; }
+function chooseSite(id) {
+  if(id!=="0,0" && !model.byId.has(id)) return;
+  state.selected=id;
+  if(id==="0,0") state.oneShell=false;
+  $("siteSelect").value=id; refreshLayers(); hideTips(); schedule();
+}
+function rebuild(newRadius=false) {
+  if(newRadius) layout=LatticeGeometry.topology(state.radius);
+  model=LatticeGeometry.build(layout,state.k,state.spacing,state.normRule);
+  if(state.selected!=="0,0" && !model.byId.has(state.selected)) state.selected=state.radius+",0";
+  if(newRadius) updateOptions();
+  hideTips();updateParameters();schedule();
+}
+$("fallProgress").addEventListener("input",e=>{
+  state.progress=Number(e.target.value)/1000;
+  pause();hideTips();schedule();
+});
+$("playButton").addEventListener("click",()=>{
+  if(state.playing) {pause();return;}
+  if(state.progress>=1) state.progress=0;
+  lastFrame=null;state.playing=true;
+  updatePlayControls();hideTips();schedule();
+});
+$("curvature").addEventListener("input",e=>{state.k=Number(e.target.value);rebuild();});
+$("shellSpacing").addEventListener("input",e=>{state.spacing=Number(e.target.value);rebuild();});
+$("normRule").addEventListener("change",e=>{state.normRule=e.target.value;rebuild();});
+for(const [id,delta] of [["radiusLess",-1],["radiusMore",1]]) {
+  $(id).addEventListener("click",()=>{
+    state.radius=clamp(state.radius+delta,2,10);
+    rebuild(true);
+  });
+}
+for(const [id,key] of layerControls) {
+  $(id).addEventListener("click",()=>{state[key]=!state[key];refreshLayers();schedule();});
+}
+$("siteSelect").addEventListener("change",e=>chooseSite(e.target.value));
+function zoom(factor) {
+  camera.zoom=clamp(camera.zoom*factor,.55,2.8);
+  $("zoomIn").disabled=camera.zoom>=2.8; $("zoomOut").disabled=camera.zoom<=.55;
+  hideTips(); schedule();
+}
+function resetCamera() {Object.assign(camera,home); $("sideView").setAttribute("aria-pressed","false"); zoom(1);}
+$("sideView").addEventListener("click",()=>{
+  if(camera.pitch===0) {resetCamera(); return;}
+  camera.pitch=0; $("sideView").setAttribute("aria-pressed","true"); hideTips(); schedule();
+});
+function orbit(dx,dy) {
+  camera.yaw-=dx*.008;
+  camera.pitch=clamp(camera.pitch+dy*.007,-1.28,1.40);
+  $("sideView").setAttribute("aria-pressed",String(camera.pitch===0));
+  hideTips();schedule();
+}
+$("zoomIn").addEventListener("click",()=>zoom(1.18));
+$("zoomOut").addEventListener("click",()=>zoom(1/1.18));
+$("cameraHome").addEventListener("click",resetCamera);
+space.canvas.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const units=e.deltaMode===1?16:e.deltaMode===2?space.h:1;
+  zoom(Math.exp(-clamp(e.deltaY*units,-150,150)*.0018));
+},{passive:false});
+space.canvas.addEventListener("keydown",e=>{
+  const steps={ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,8],ArrowDown:[0,-8]};
+  if(steps[e.key]) orbit(...steps[e.key]);
+  else if(e.key==="+"||e.key==="=") zoom(1.15);
+  else if(e.key==="-"||e.key==="_") zoom(1/1.15);
+  else if(e.key==="Home") resetCamera();
+  else return;
+  e.preventDefault();
+});
+function localPoint(view,e) {
+  const rect=view.canvas.getBoundingClientRect();
+  return {x:e.clientX-rect.left,y:e.clientY-rect.top};
+}
+function nearest(view,p,tolerance=10) {
+  let best=null,score=tolerance*tolerance;
+  for(const cand of view.hits) {
+    const d=(p.x-cand.x)**2+(p.y-cand.y)**2;
+    if(d>tolerance*tolerance) continue;
+    // A release site is an unambiguous label, even when projections overlap.
+    const priority=cand.kind==="root"?-.3:cand.kind==="source"?-.15:0;
+    const weighted=d+priority-clamp(cand.depth,-25,25)*.00001;
+    if(weighted<score) {score=weighted; best=cand;}
+  }
+  return best;
+}
+function tooltip(view,p) {
+  if(view===plane && state.dotsOnly) {view.tip.style.display="none";return;}
+  if(state.playing) {view.tip.style.display="none";return;}
+  const near=nearest(view,p,8);
+  if(!near) {view.tip.style.display="none";return;}
+  const s=model.byId.get(near.id);
+  view.tip.textContent=s?coords(s.i,s.j)+" · ring "+s.shell.rank:"(0, 0) · pinned";
+  view.tip.style.display="block";
+  view.tip.style.left=clamp(p.x+11,5,view.w-view.tip.offsetWidth-5)+"px";
+  view.tip.style.top=clamp(p.y-26,5,view.h-view.tip.offsetHeight-5)+"px";
+}
+const pointers=new Map();
+let moved=false,pinch=null;
+const pointerGap=()=>{const [a,b]=pointers.values();return Math.hypot(a.x-b.x,a.y-b.y);};
+space.canvas.addEventListener("pointerdown",e=>{
+  if(e.button!==0) return;
+  const start=localPoint(space,e);
+  pointers.set(e.pointerId,{...start,startX:start.x,startY:start.y});
+  space.canvas.setPointerCapture(e.pointerId);
+  if(pointers.size===1) {moved=false;pinch=null;}
+  else if(pointers.size===2) {moved=true;pinch=pointerGap();}
+  hideTips();
+});
+space.canvas.addEventListener("pointermove",e=>{
+  const p=localPoint(space,e), last=pointers.get(e.pointerId);
+  if(!last) {if(e.pointerType!=="touch") tooltip(space,p);return;}
+  const dx=p.x-last.x,dy=p.y-last.y;
+  last.x=p.x;last.y=p.y;
+  if(pointers.size===2) {
+    const gap=pointerGap();
+    if(pinch && gap>2) zoom(gap/pinch);
+    pinch=gap;
+  } else if(pointers.size===1) {
+    if(!moved && Math.hypot(p.x-last.startX,p.y-last.startY)>3) {
+      moved=true; orbit(p.x-last.startX,p.y-last.startY);
+    } else if(moved) orbit(dx,dy);
+  }
+});
+function endPointer(e) {
+  if(!pointers.has(e.pointerId)) return;
+  if(e.type==="pointerup" && !moved && pointers.size===1) {
+    const cand=nearest(space,localPoint(space,e),e.pointerType==="touch"?16:10);
+    if(cand) chooseSite(cand.id);
+  }
+  pointers.delete(e.pointerId);pinch=null;
+  if(space.canvas.hasPointerCapture(e.pointerId)) space.canvas.releasePointerCapture(e.pointerId);
+}
+for(const type of ["pointerup","pointercancel","lostpointercapture"]) space.canvas.addEventListener(type,endPointer);
+space.canvas.addEventListener("pointerleave",()=>space.tip.style.display="none");
+plane.canvas.addEventListener("pointermove",e=>{if(e.pointerType!=="touch") tooltip(plane,localPoint(plane,e));});
+plane.canvas.addEventListener("pointerleave",()=>plane.tip.style.display="none");
+plane.canvas.addEventListener("click",e=>{
+  const near=nearest(plane,localPoint(plane,e),e.pointerType==="touch"?16:10);
+  if(near) chooseSite(near.id);
+});
+const notes=$("notesDialog");
+$("notesButton").addEventListener("click",()=>{
+  pause();hideTips();
+  if(typeof notes.showModal==="function") notes.showModal(); else notes.setAttribute("open","");
+});
+function closeNotes() {
+  if(typeof notes.close==="function") notes.close(); else notes.removeAttribute("open");
+  $("notesButton").focus();
+}
+$("closeNotes").addEventListener("click",closeNotes);
+notes.addEventListener("click",e=>{
+  if(e.target!==notes) return;
+  const r=notes.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) closeNotes();
+});
+document.addEventListener("visibilitychange",()=>{if(document.hidden && state.playing) pause();});
+if(window.ResizeObserver) {
+  const observer=new ResizeObserver(schedule);
+  observer.observe(space.canvas);observer.observe(plane.canvas);
+}
+window.addEventListener("resize",schedule,{passive:true});
+updateOptions();updateParameters();updatePlayControls();refreshLayers();schedule();
+})();
+</script>
+</body>
+</html>
