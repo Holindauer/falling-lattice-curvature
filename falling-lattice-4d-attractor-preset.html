@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Falling lattice / fourth dimension</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#10141c;color:#e3e9f3;font:14px system-ui,sans-serif}
+header{padding:22px 26px 14px;border-bottom:1px solid #2a3444}
+h1{font-size:25px;margin:0 0 5px;font-weight:600}
+p{margin:5px 0;color:#a5b3c7;line-height:1.5}
+.controls{display:flex;flex-wrap:wrap;gap:14px;padding:16px 26px;align-items:flex-end;background:#161c27}
+label{display:grid;gap:5px;color:#bdc9da;font-size:12px;min-width:130px}
+.inlineChecks{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input[type=range]{accent-color:#70d7e7;width:150px}
+input[type=number]{width:90px;background:#243245;color:#e8f0fa;border:1px solid #42546d;border-radius:7px;padding:7px 8px;font:inherit}
+button,select{background:#243245;color:#e8f0fa;border:1px solid #42546d;border-radius:7px;padding:8px 12px;font:inherit;cursor:pointer}
+button:hover{background:#354961}
+.views{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;padding:12px 18px}
+.pane{border:1px solid #2b394c;border-radius:12px;overflow:hidden;background:#141b26;min-width:0}
+.pane h2{font-size:14px;font-weight:600;margin:0;padding:12px 15px;border-bottom:1px solid #2b394c}
+.pane small{color:#91a3bb;font-weight:400;margin-left:8px}
+canvas{display:block;width:100%;height:min(61vh,650px);touch-action:none;background:radial-gradient(ellipse at center,#1c293a,#101722)}
+.foot{padding:4px 26px 24px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.foot h3{font-size:14px;margin:10px 0 5px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;padding:10px 15px;color:#aebdd1;font-size:12px}
+#info{min-height:22px;color:#9fdfeb;padding:0 26px}
+.hidden{display:none !important}
+@media(max-width:800px){.views,.foot{grid-template-columns:1fr}canvas{height:430px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Falling lattice / fourth dimension</h1>
+  <p>ℤ³ ⊂ ℝ⁴ · choose either uniform gravity along −w or a point attractor in 4D · two synchronized, rotatable 3D projections</p><p>Starts in point-attractor mode. Press Replay fall to watch the nodes move; switch Gravity model to Directional to restore the original model.</p>
+</header>
+
+<div class="controls">
+  <label>Lattice extent <span id="nv"></span><input id="n" type="range" min="1" max="50" value="4"></label>
+  <label>Radial curvature κ <span id="kv"></span><input id="k" type="range" min="-1.5" max="1.5" step=".01" value="0"></label>
+  <label>Fall progress <span id="tv"></span><input id="t" type="range" min="0" max="1" step=".002" value="1"></label>
+  <label>Final radial fraction / attractor blend <span id="fv"></span><input id="f" type="range" min=".05" max=".99" step=".01" value=".35"></label>
+  <label>Gravity model
+    <select id="gravity">
+      <option value="directional">Directional (−w)</option>
+      <option value="point" selected>Point attractor</option>
+    </select>
+  </label>
+  <label>4D viewing angle <span id="av"></span><input id="a" type="range" min="-180" max="180" value="50"></label>
+  <label>4D rotation plane
+    <select id="plane">
+      <option value="2">zw</option>
+      <option value="0">xw</option>
+      <option value="1">yw</option>
+    </select>
+  </label>
+  <label>Trajectory
+    <select id="mode">
+      <option value="arc">Taut arc</option>
+      <option value="para">Parabolic</option>
+      <option value="vertical">Direct pull</option>
+    </select>
+  </label>
+  <label>Shell selection
+    <select id="shell">
+      <option value="all">All radii</option>
+      <option value="integer">Integer radii only</option>
+      <option value="one">Single shell</option>
+    </select>
+  </label>
+  <label>Single shell radius² <span id="qv"></span><input id="q" type="number" min="1" max="48" value="9" step="1"></label>
+  <label>Rendering
+    <select id="quality">
+      <option value="auto">Auto / dense above 20k</option>
+      <option value="dense">Dense points</option>
+      <option value="detail">Detailed (up to 20k)</option>
+    </select>
+  </label>
+  <label>Point size <span id="pv"></span><input id="ps" type="range" min="0.5" max="5" step="0.1" value="1.2"></label>
+  <label>Color
+    <select id="color">
+      <option value="depth">Fourth coordinate</option>
+      <option value="shell">Radius</option>
+      <option value="mono">Monochrome</option>
+    </select>
+  </label>
+
+  <label id="attractorBox">Attractor (x,y,z,w)
+    <span class="inlineChecks">
+      <input id="ax" type="number" step="0.5" value="3">
+      <input id="ay" type="number" step="0.5" value="2">
+      <input id="az" type="number" step="0.5" value="0">
+      <input id="aw" type="number" step="0.5" value="-8">
+    </span>
+  </label>
+
+  <label>
+    <span class="inlineChecks">
+      <label><input id="paths" type="checkbox" checked> Paths</label>
+      <label><input id="edges" type="checkbox"> Tethers</label>
+      <label><input id="grid" type="checkbox"> Original nodes</label>
+      <label><input id="black" type="checkbox"> Black background</label>
+      <label><input id="showA" type="checkbox" checked> Show attractor</label>
+    </span>
+  </label>
+
+  <button id="play">Replay fall</button>
+  <button id="reset">Reset cameras</button>
+</div>
+
+<div id="info">Hover a node to inspect its four coordinates.</div>
+
+<div class="views">
+  <section class="pane">
+    <h2>01 / Rotated 4D projection <small>Drag · scroll to zoom</small></h2>
+    <canvas id="left"></canvas>
+    <div class="legend">Rotate the fourth axis into a visible axis using the 4D angle slider.</div>
+  </section>
+  <section class="pane">
+    <h2>02 / Natural xyz projection <small>Drag · scroll to zoom</small></h2>
+    <canvas id="right"></canvas>
+    <div class="legend">Orthogonal projection, dropping w. Colors encode hidden depth by default.</div>
+  </section>
+</div>
+
+<div class="foot">
+  <section>
+    <h3>Construction</h3>
+    <p>For p=(i,j,k) ∈ ℤ³, let r=‖p‖₂ and R=√3 N. The deformed tether length is Lκ(r)=r exp(κr/R). In the directional model, the current implementation matches the earlier version: the taut trajectory rotates the deformed node toward −w while preserving the tether length. In the point-attractor model, each node is steered toward a user-chosen point A=(ax,ay,az,aw) in ℝ⁴.</p>
+  </section>
+  <section>
+    <h3>Interpretation</h3>
+    <p>The slider labeled “final radial fraction / attractor blend” keeps its old meaning in the directional model and becomes an attractor-blend parameter in the point-attractor model: values near 1 preserve the original direction, values near 0 align more strongly toward the attractor. Dense mode renders all selected points but disables paths, tethers, original nodes, and hover inspection for speed. The lattice is truncated to a finite cube.</p>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvases = [$('left'), $('right')];
+const TAU = 2*Math.PI;
+let cams = [ {yaw:.65,pitch:.45,zoom:1}, {yaw:.65,pitch:.45,zoom:1} ];
+let screens = [[], []];
+let selected = '';
+let anim = null;
+let nodes = [];
+let denseData = null;
+let cache = '';
+let total = 0;
+let pending = false;
+
+function norm(v){ const m = Math.hypot(...v); return m ? v.map(x=>x/m) : [0,0,0,-1]; }
+function dot(a,b){ let s=0; for(let i=0;i<a.length;i++) s += a[i]*b[i]; return s; }
+function add(a,b){ return a.map((x,i)=>x+b[i]); }
+function sub(a,b){ return a.map((x,i)=>x-b[i]); }
+function mul(a,c){ return a.map(x=>x*c); }
+function lerp(a,b,t){ return a.map((x,i)=>x*(1-t)+b[i]*t); }
+function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+function safeNormalize(v,fallback){ const m=Math.hypot(...v); return m>1e-9 ? v.map(x=>x/m) : fallback && fallback.slice(); }
+function slerp(u,v,t){
+  let c = clamp(dot(u,v), -1, 1);
+  if(c > 0.9995) return safeNormalize(lerp(u,v,t), u);
+  if(c < -0.999999) { const q = orthToward(u,v); return add(mul(u,Math.cos(Math.PI*t)),mul(q,Math.sin(Math.PI*t))); }
+  const om = Math.acos(c), s = Math.sin(om);
+  const a = Math.sin((1-t)*om)/s, b = Math.sin(t*om)/s;
+  return u.map((x,i)=>a*x+b*v[i]);
+}
+function orthToward(u, g){
+  const proj = sub(g, mul(u, dot(u,g)));
+  let v = safeNormalize(proj, null);
+  if(v) return v;
+  // fallback: choose some orthogonal direction
+  const trial = Math.abs(u[0]) < 0.8 ? [1,0,0,0] : Math.abs(u[1]) < 0.8 ? [0,1,0,0] : [0,0,1,0];
+  return safeNormalize(sub(trial, mul(u, dot(u,trial))), [0,0,0,-1]);
+}
+
+function settings(){
+  const N = +$('n').value;
+  $('q').max = 3*N*N;
+  return {
+    N,
+    R: Math.sqrt(3)*N,
+    k: +$('k').value,
+    t: +$('t').value,
+    f: +$('f').value,
+    a: +$('a').value * Math.PI/180,
+    axis: +$('plane').value,
+    mode: $('mode').value,
+    shell: $('shell').value,
+    q: Math.max(1, Math.min(3*N*N, Math.floor(+$('q').value)||1)),
+    gravity: $('gravity').value,
+    A: [+$('ax').value || 0, +$('ay').value || 0, +$('az').value || 0, +$('aw').value || 0]
+  };
+}
+
+function build(s){
+  const key = [s.N,s.k,s.shell,s.q,$('quality').value].join('|');
+  if(key === cache) return;
+  cache = key;
+  nodes = [];
+  total = 0;
+  const N = s.N, cap = (2*N+1)**3 - 1;
+  const buf = new Float32Array(cap * 4);
+  let j = 0;
+  for(let x=-N;x<=N;x++) for(let y=-N;y<=N;y++) for(let z=-N;z<=N;z++){
+    const q = x*x + y*y + z*z;
+    if(!q) continue;
+    if(s.shell === 'one' && q !== s.q) continue;
+    const r = Math.sqrt(q);
+    if(s.shell === 'integer' && !Number.isInteger(r)) continue;
+    const L = r * Math.exp(s.k*r/s.R);
+    buf[j++] = x;
+    buf[j++] = y;
+    buf[j++] = z;
+    buf[j++] = L;
+    total++;
+  }
+  const dense = $('quality').value === 'dense' || total > 20000;
+  denseData = dense ? buf.subarray(0,j) : null;
+  if(!dense){
+    for(let i=0;i<j;i+=4){
+      const x = buf[i], y = buf[i+1], z = buf[i+2], L = buf[i+3];
+      const r = Math.hypot(x,y,z);
+      nodes.push({ p:[x,y,z], r, L, id:[x,y,z].join(',') });
+    }
+  }
+}
+
+function pointTargetDirection(n, s){
+  const u = [n.p[0]/n.r, n.p[1]/n.r, n.p[2]/n.r, 0];
+  const g = safeNormalize(s.A, u);
+  return slerp(u, g, 1-s.f);
+}
+
+function posDirectional(n, t, s){
+  let h, w;
+  if(s.mode === 'arc'){
+    const ang = t * Math.acos(s.f);
+    h = n.L * Math.cos(ang);
+    w = -n.L * Math.sin(ang);
+  }else if(s.mode === 'vertical'){
+    h = n.L;
+    w = -n.L * Math.sqrt(1-s.f*s.f) * t;
+  }else{
+    h = n.L * (1 - (1-s.f) * t);
+    w = -n.L * Math.sqrt(1-s.f*s.f) * t*t;
+  }
+  return [n.p[0]*h/n.r, n.p[1]*h/n.r, n.p[2]*h/n.r, w];
+}
+
+function posPoint(n, t, s){
+  const Uhat = [n.p[0]/n.r, n.p[1]/n.r, n.p[2]/n.r, 0];
+  const U = mul(Uhat, n.L);
+  const Dhat = pointTargetDirection(n, s);
+  const T = mul(Dhat, n.L);
+  if(s.mode === 'arc'){
+    const P = mul(slerp(Uhat, Dhat, t), n.L);
+    return P;
+  }
+  if(s.mode === 'vertical'){
+    return lerp(U, T, t);
+  }
+  const g = safeNormalize(s.A, [0,0,0,-1]);
+  const C = add(mul(add(U,T), 0.5), mul(g, 0.25*n.L));
+  const a = (1-t)*(1-t), b = 2*(1-t)*t, c = t*t;
+  return [a*U[0]+b*C[0]+c*T[0], a*U[1]+b*C[1]+c*T[1], a*U[2]+b*C[2]+c*T[2], a*U[3]+b*C[3]+c*T[3]];
+}
+
+function pos(n,t,s){ return s.gravity === 'directional' ? posDirectional(n,t,s) : posPoint(n,t,s); }
+
+function updateLabels(s){
+  $('nv').textContent = `${s.N} · ${total.toLocaleString()} nodes`;
+  $('kv').textContent = s.k.toFixed(2);
+  $('tv').textContent = `${Math.round(s.t*100)}%`;
+  $('fv').textContent = s.f.toFixed(2);
+  $('av').textContent = `${$('a').value}°`;
+  $('qv').textContent = `${s.q}`;
+  $('pv').textContent = $('ps').value;
+  $('attractorBox').classList.toggle('hidden', s.gravity !== 'point');
+}
+
+function requestRender(){
+  if(pending) return;
+  pending = true;
+  requestAnimationFrame(()=>{ pending = false; drawFrame(); });
+}
+
+function project4To3(v, s, paneIndex){
+  let x=v[0], y=v[1], z=v[2], w=v[3];
+  if(paneIndex === 0){
+    const c = Math.cos(s.a), sn = Math.sin(s.a);
+    if(s.axis === 0) x = x*c - w*sn;
+    else if(s.axis === 1) y = y*c - w*sn;
+    else z = z*c - w*sn;
+  }
+  return [x,y,z];
+}
+
+function drawFrame(){
+  const s = settings();
+  build(s);
+  updateLabels(s);
+  let bound = s.R;
+  if(denseData){
+    for(let i=3;i<denseData.length;i+=4) bound = Math.max(bound, denseData[i]);
+  }else{
+    for(const n of nodes) bound = Math.max(bound, n.L);
+  }
+  if(s.gravity === 'point' && $('showA').checked){
+    bound = Math.max(bound, Math.hypot(...s.A));
+  }
+  bound *= 1.15;
+
+  canvases.forEach((canvas, paneIndex)=>{
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    if(!w || !h) return;
+    if(canvas.width !== Math.round(w*dpr) || canvas.height !== Math.round(h*dpr)){
+      canvas.width = Math.round(w*dpr);
+      canvas.height = Math.round(h*dpr);
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = $('black').checked ? '#000' : '#111a27';
+    ctx.fillRect(0,0,w,h);
+
+    const cam = cams[paneIndex];
+    const scale = Math.min(w,h)/(2.2*bound) * cam.zoom;
+
+    function project(v4){
+      const a = project4To3(v4, s, paneIndex);
+      const [x,y,z] = a;
+      const u = x*Math.cos(cam.yaw) - y*Math.sin(cam.yaw);
+      const b = x*Math.sin(cam.yaw) + y*Math.cos(cam.yaw);
+      return [
+        w/2 + u*scale,
+        h/2 + (b*Math.sin(cam.pitch) - z*Math.cos(cam.pitch))*scale,
+        b*Math.cos(cam.pitch) + z*Math.sin(cam.pitch)
+      ];
+    }
+
+    function line(points, color, width=1){
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for(let i=1;i<points.length;i++) ctx.lineTo(points[i][0], points[i][1]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+
+    function dot(pt, r, color){
+      ctx.beginPath();
+      ctx.arc(pt[0], pt[1], r, 0, TAU);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    const O = project([0,0,0,0]);
+    for(let j=0;j<(paneIndex ? 3 : 4);j++){
+      const a = [0,0,0,0];
+      a[j] = bound;
+      const v = project(a);
+      const color = ['#d98d88','#8dd7ad','#93aef6','#f2c078'][j];
+      line([O,v], color);
+      ctx.fillStyle = color;
+      ctx.font = '12px system-ui';
+      ctx.fillText('xyzw'[j], v[0]+5, v[1]-5);
+    }
+
+    if(s.gravity === 'point' && $('showA').checked){
+      const Ap = project(s.A);
+      dot(Ap, 4, '#ff8a8a');
+      ctx.fillStyle = '#ffb6b6';
+      ctx.font = '12px system-ui';
+      ctx.fillText('A', Ap[0]+6, Ap[1]-6);
+      line([O, Ap], '#ff8a8a55', 1);
+    }
+
+    if(denseData){
+      screens[paneIndex] = [];
+      const size = +$('ps').value;
+      const mode = $('color').value;
+      const palette = Array.from({length:32}, (_,i)=>`hsl(${190+140*i/31},78%,68%)`);
+      const bins = Array.from({length:32}, ()=>[]);
+      const denseNode = {p:[0,0,0],r:1,L:1};
+      for(let i=0;i<denseData.length;i+=4){
+        denseNode.p[0] = denseData[i]; denseNode.p[1] = denseData[i+1]; denseNode.p[2] = denseData[i+2];
+        denseNode.r = Math.hypot(denseNode.p[0], denseNode.p[1], denseNode.p[2]);
+        denseNode.L = denseData[i+3];
+        const p4 = pos(denseNode, s.t, s);
+        const v = project(p4);
+        if(v[0] < 0 || v[1] < 0 || v[0] >= w || v[1] >= h) continue;
+        let bin;
+        if(mode === 'mono') bin = 0;
+        else if(mode === 'shell') bin = Math.min(31, Math.max(0, Math.floor(31*denseNode.L/bound)));
+        else bin = Math.min(31, Math.max(0, Math.floor(31*(0.5 - p4[3]/(2*bound)))));
+        bins[bin].push(v[0], v[1]);
+      }
+      for(let b=0;b<32;b++){
+        ctx.fillStyle = mode === 'mono' ? '#f5f5f5' : palette[b];
+        const arr = bins[b];
+        for(let j=0;j<arr.length;j+=2) ctx.fillRect(arr[j]-size/2, arr[j+1]-size/2, size, size);
+      }
+      dot(O, 4, '#f2c078');
+      return;
+    }
+
+    let draw = nodes.map(n => {
+      const p = pos(n, s.t, s);
+      return { n, p, v: project(p) };
+    }).sort((a,b)=>a.v[2]-b.v[2]);
+    screens[paneIndex] = draw;
+    const stride = Math.max(1, Math.ceil(nodes.length/1100));
+
+    for(let i=0;i<draw.length;i++){
+      const {n,p,v} = draw[i];
+      const active = n.id === selected;
+      if($('grid').checked) dot(project([n.p[0],n.p[1],n.p[2],0]), 1.3, '#8493a766');
+      if($('paths').checked && (i%stride===0 || active)){
+        const pts = [];
+        for(let j=0;j<=16;j++) pts.push(project(pos(n, j/16, s)));
+        line(pts, active ? '#fff1a8' : '#78bbdb25', active ? 2 : .7);
+      }
+      if($('edges').checked) line([O,v], active ? '#fff1a8' : '#9dbbda22');
+      const colorMode = $('color').value;
+      let hue = colorMode === 'shell' ? 190 + 140*n.r/s.R : 190 + 100*Math.min(1, Math.max(0, -p[3]/bound + .25));
+      dot(v, active ? 5 : +$('ps').value, active ? '#fff1a8' : colorMode==='mono' ? '#f5f5f5' : `hsl(${hue},78%,68%)`);
+    }
+
+    dot(O,4,'#f2c078');
+    const picked = draw.find(a => a.n.id === selected);
+    if(picked){
+      ctx.fillStyle = '#fff1a8';
+      ctx.font = '12px system-ui';
+      ctx.fillText('('+selected+')', picked.v[0]+7, picked.v[1]-7);
+      $('info').textContent = `Node (${selected}) · r=${picked.n.r.toFixed(3)} · L=${picked.n.L.toFixed(3)} · (x,y,z,w)=(${picked.p.map(x=>x.toFixed(3)).join(', ')})`;
+    }
+  });
+
+  if(!selected){
+    const modelText = s.gravity === 'directional'
+      ? 'Directional mode: gravity acts along −w.'
+      : `Point-attractor mode: A=(${s.A.map(x=>+x.toFixed(2)).join(', ')}).`;
+    $('info').textContent = `${total.toLocaleString()} nodes · ${denseData ? 'Dense mode: all selected points, paths/tethers/original nodes and hover disabled.' : 'Hover a node to inspect its four coordinates.'} ${modelText}`;
+  }
+}
+
+canvases.forEach((canvas, paneIndex)=>{
+  let drag = null;
+  canvas.onpointerdown = e => { drag = [e.clientX, e.clientY]; canvas.setPointerCapture(e.pointerId); };
+  canvas.onpointermove = e => {
+    if(drag){
+      cams[paneIndex].yaw += (e.clientX - drag[0]) * .009;
+      cams[paneIndex].pitch = clamp(cams[paneIndex].pitch + (e.clientY - drag[1]) * .009, -1.55, 1.55);
+      drag = [e.clientX, e.clientY];
+      requestRender();
+    }else if(!denseData){
+      const r = canvas.getBoundingClientRect();
+      let best = 9, id='';
+      for(const {n,v} of screens[paneIndex]){
+        const d = Math.hypot(v[0] - (e.clientX - r.left), v[1] - (e.clientY - r.top));
+        if(d < best){ best = d; id = n.id; }
+      }
+      if(id !== selected){ selected = id; requestRender(); }
+    }
+  };
+  canvas.onpointerup = canvas.onpointercancel = () => drag = null;
+  canvas.onpointerleave = () => { if(!drag && selected){ selected=''; requestRender(); } };
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    cams[paneIndex].zoom = clamp(cams[paneIndex].zoom * Math.exp(-e.deltaY*.001), .25, 8);
+    requestRender();
+  }, {passive:false});
+});
+
+function stop(){
+  if(anim !== null) cancelAnimationFrame(anim);
+  anim = null;
+  $('play').textContent = 'Replay fall';
+}
+$('play').onclick = () => {
+  if(anim !== null){ stop(); return; }
+  const start = performance.now();
+  $('play').textContent = 'Pause';
+  function step(now){
+    const t = Math.min(1, (now-start)/3500);
+    $('t').value = t;
+    requestRender();
+    if(t < 1) anim = requestAnimationFrame(step); else stop();
+  }
+  anim = requestAnimationFrame(step);
+};
+$('reset').onclick = () => { cams = [ {yaw:.65,pitch:.45,zoom:1}, {yaw:.65,pitch:.45,zoom:1} ]; requestRender(); };
+document.querySelectorAll('input,select').forEach(el => el.addEventListener('input', () => {
+  if(el.id === 't') stop();
+  selected = '';
+  requestRender();
+}));
+window.addEventListener('resize', requestRender);
+requestRender();
+</script>
+</body>
+</html>
